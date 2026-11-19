@@ -19,9 +19,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-frontend.ts';
 
-// Leonida Ledger: this entry's guide is a full tracker — 55 cited guides, a roadmap
+// Leonida Ledger v2: this entry's guide is a full tracker — 55 cited guides, a roadmap
 // to the platinum, missable flags, filters and a spoiler setting in app/, with
-// screenshots of each view in screenshots/. The hand-in below is unchanged plumbing.
+// screenshots of each view in screenshots/. v2 adds per-trophy difficulty and time
+// estimates plus a concrete tip in app/data/trophy-notes.json, per-stage checklists
+// with hour estimates on the roadmap, avoid-notes on the missables page, and a
+// collectibles / activities / money reference in app/data/reference.json.
+// The hand-in below is unchanged plumbing.
 const here = fileURLToPath(new URL('.', import.meta.url));
 const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
@@ -33,6 +37,9 @@ if (existsSync(join(here, 'screenshots'))) cpSync(join(here, 'screenshots'), joi
 // The scorer's own caps (reference/gate.json): only text_max_bytes shapes the bytes; the others refuse an entry the
 // scorer would refuse (more than 4 screenshots or one over 256 KiB; more than 993 files and directories in app/ or
 // 48 MiB of app files: app/ counts beside /output's own 1000-entry cap, its screenshots/ and dossier.json).
+// v2: app/data/trophy-notes.json (difficulty, time, tip, avoid per trophy) and
+// app/data/reference.json (collectibles / activities / money) are copied with app/ by the cpSync above —
+// they are plain data files the app fetches at run time, inside app/, so they need no special handling here.
 writeFileSync(
   join(out, 'dossier.json'),
   buildDossier(out, { text_max_bytes: 163840, screenshots: { max: 4, max_bytes: 262144 }, app_max_files: 993, app_max_bytes: 50331648 }),

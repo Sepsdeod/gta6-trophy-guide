@@ -12,7 +12,7 @@
   <div class="masthead-text">
     <p class="kicker">Grand Theft Auto VI &middot; PlayStation 5 &middot; Offline guide</p>
     <h1>Leonida Ledger</h1>
-    <p class="subtitle">Every one of the 55 official trophies — 1 platinum, 2 gold, 6 silver, 46 bronze, 28 hidden — with a guide that cites its sources, a roadmap to the platinum, and a tracker that remembers your progress.</p>
+    <p class="subtitle">Every one of the 55 official trophies — 1 platinum, 2 gold, 6 silver, 46 bronze, 28 hidden — with a guide that cites its sources, a difficulty and time estimate plus a pro tip per trophy, a roadmap to the platinum, and a tracker that remembers your progress.</p>
   </div>
   <div class="progress-card" id="progressCard" aria-live="polite">
     <p class="progress-count"><span id="earnedCount">0</span><span class="of"> / 55 earned</span></p>
@@ -25,6 +25,7 @@
   <button type="button" class="tab active" data-view="checklist" id="tab-checklist">Checklist</button>
   <button type="button" class="tab" data-view="roadmap" id="tab-roadmap">Roadmap to Platinum</button>
   <button type="button" class="tab" data-view="missables" id="tab-missables">Missables <span class="pill" id="missableCount"></span></button>
+  <button type="button" class="tab" data-view="reference" id="tab-reference">Collectibles &amp; Activities</button>
 </nav>
 <section class="toolbar" aria-label="Filters and settings">
   <label class="search">Search <input id="search" type="search" placeholder="Trophy name or description…" autocomplete="off"></label>
@@ -61,6 +62,7 @@
 </main>
 <section class="roadmap-pane" id="roadmapPane" hidden aria-label="Roadmap to the platinum"></section>
 <section class="missables-pane" id="missablesPane" hidden aria-label="Missable trophies"></section>
+<section class="reference-pane" id="referencePane" hidden aria-label="Collectibles and activities reference"></section>
 <footer class="footer">
   <div class="save-row">
     <button type="button" id="exportBtn">Export progress (.json)</button>

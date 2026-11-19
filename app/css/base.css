@@ -119,6 +119,12 @@ h1, h2, h3, .serif { font-family: "Iowan Old Style", Palatino, Georgia, serif; }
 .detail-grade.bronze { color: var(--bronze); }
 .detail-desc { color: var(--muted); font-style: italic; margin: 6px 0 12px; }
 .detail-guide { margin: 0 0 12px; }
+.detail-chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 4px; }
+.chip { font-size: 12px; font-weight: 700; border-radius: 20px; padding: 3px 10px; background: var(--accent-soft); color: var(--accent); }
+.chip-note { font-size: 12px; color: var(--muted); margin: 0 0 12px; }
+.tip-box { background: #f3f7f0; border-left: 4px solid #4a7c3a; border-radius: 0 8px 8px 0; padding: 10px 12px; margin: 0 0 12px; font-size: 14px; }
+.avoid-box { background: #fde8e0; border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 10px 12px; margin: 0 0 12px; font-size: 14px; }
+.avoid-note { color: #7a2c12; font-size: 13px; margin-top: 4px; }
 .detail-target { margin: 0 0 12px; font-weight: 600; }
 .detail-sources { border-top: 1px solid var(--line); padding-top: 10px; font-size: 13px; }
 .detail-sources h3 { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
@@ -128,13 +134,28 @@ h1, h2, h3, .serif { font-family: "Iowan Old Style", Palatino, Georgia, serif; }
 .detail-earn button { font: inherit; font-weight: 700; background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 9px 16px; cursor: pointer; }
 .detail-earn button.earned { background: var(--ink); }
 .spoiler-mask { color: var(--muted); font-style: italic; }
-.roadmap-pane, .missables-pane { padding: 0 28px 20px; }
+.roadmap-pane, .missables-pane, .reference-pane { padding: 0 28px 20px; }
+.roadmap-total { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 18px; margin: 0 0 12px; font-weight: 600; }
 .stage { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; }
 .stage h2 { margin: 0 0 4px; font-size: 21px; }
 .stage p { margin: 0 0 8px; color: var(--muted); }
 .stage ul { margin: 0; padding-left: 20px; }
 .stage li.earned { color: var(--muted); text-decoration: line-through; }
 .stage .stage-progress { font-weight: 700; color: var(--accent); }
+.stage-meta { margin: 0 0 8px; }
+.stage-hours { font-weight: 700; color: var(--ink); }
+.stage-bar { height: 8px; background: #e8e2d5; border-radius: 6px; overflow: hidden; margin: 0 0 10px; }
+.stage-bar span { display: block; height: 100%; background: var(--accent); }
+.stage-checklist { list-style: none; padding-left: 0; }
+.stage-checklist li { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
+.stage-checklist input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex: none; }
+.missable-group { margin-bottom: 16px; }
+.missable-group h2 { font-size: 19px; margin: 0 0 4px; }
+.missable-group p { color: var(--muted); margin: 0 0 10px; }
+.ref-item { border-top: 1px solid var(--line); padding: 10px 0 4px; }
+.ref-item h3 { margin: 0 0 2px; font-size: 16px; }
+.ref-item p { margin: 0 0 6px; }
+.ref-counts { font-weight: 700; color: var(--accent); font-size: 13px; }
 .missable-intro { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; }
 .missable-intro p { margin: 0 0 8px; }
 .footer { border-top: 1px solid var(--line); padding: 18px 28px 28px; }

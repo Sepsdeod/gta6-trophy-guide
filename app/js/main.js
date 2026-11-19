@@ -1,6 +1,6 @@
 // main boots the Leonida Ledger: loads the trophy data, wires the checklist,
 // filters, spoiler setting, roadmap and missables views, and the save controls.
-import { loadTrophies } from './data.js';
+import { loadReference, loadTrophies } from './data.js';
 import { createFilters } from './filters.js';
 import { createProgressStore } from './store.js';
 import {
@@ -9,6 +9,7 @@ import {
   renderDetail,
   renderMissables,
   renderProgress,
+  renderReference,
   renderRoadmap,
   renderSourceLinks,
 } from './views.js';
@@ -31,6 +32,7 @@ const refs = {
   detailPane: document.getElementById('detailPane'),
   roadmapPane: document.getElementById('roadmapPane'),
   missablesPane: document.getElementById('missablesPane'),
+  referencePane: document.getElementById('referencePane'),
   sourceLinks: document.getElementById('sourceLinks'),
   onlineNote: document.getElementById('onlineNote'),
 };
@@ -39,6 +41,7 @@ const store = createProgressStore();
 const filters = createFilters();
 let trophies = [];
 let sources = {};
+let reference = { sections: [] };
 let selectedName = null;
 let currentView = 'checklist';
 
@@ -51,8 +54,9 @@ function renderAll() {
   renderCounts(trophies, refs);
   renderChecklist(trophies, store, filters, selectedName, selectTrophy, refs);
   renderDetail(selectedTrophy(), sources, store, filters, toggleTrophy, refs);
-  renderRoadmap(trophies, store, refs);
+  renderRoadmap(trophies, store, toggleTrophy, refs);
   renderMissables(trophies, store, refs);
+  renderReference(reference, refs);
 }
 
 function selectTrophy(name, keepDetail) {
@@ -79,6 +83,7 @@ function showView(view) {
   document.querySelector('.toolbar').style.display = checklistVisible ? '' : 'none';
   refs.roadmapPane.hidden = view !== 'roadmap';
   refs.missablesPane.hidden = view !== 'missables';
+  refs.referencePane.hidden = view !== 'reference';
   refs.onlineNote.hidden = filters.kind !== 'online';
   if (view !== 'checklist') history.replaceState(null, '', `#${view}`);
 }
@@ -149,7 +154,7 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 
 function applyHash() {
   const hash = decodeURIComponent(location.hash);
-  if (hash === '#roadmap' || hash === '#missables') {
+  if (hash === '#roadmap' || hash === '#missables' || hash === '#reference') {
     showView(hash.slice(1));
   } else if (hash.startsWith('#trophy-')) {
     const name = hash.slice('#trophy-'.length);
@@ -167,6 +172,7 @@ try {
   const doc = await loadTrophies();
   trophies = doc.trophies;
   sources = doc.sources;
+  reference = await loadReference();
   renderSourceLinks(sources, refs);
   renderAll();
   applyHash();
