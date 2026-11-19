@@ -19,16 +19,19 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-frontend.ts';
 
-// Leonida Ledger v3 (repair build): this entry's guide is a full tracker — 55 cited guides, a roadmap
+// Leonida Ledger v4 (repair build): this entry's guide is a full tracker — 55 cited guides, a roadmap
 // to the platinum, missable flags, filters and a spoiler setting in app/, with
-// screenshots of each view in screenshots/. v3 rebuilds the tracker's code from scratch in this
-// session (versioned save format with migration, richer export/import, a sortable checklist, a
-// detail pane that steps between trophies and names its roadmap stage), expands the reference to
-// four sections including one-off free-roam moments, and adds a meta block to
-// app/data/trophies.json. v2 added per-trophy difficulty and time estimates plus a concrete tip in
-// app/data/trophy-notes.json, per-stage checklists with hour estimates on the roadmap, avoid-notes
-// on the missables page, and a collectibles / activities / money reference in
-// app/data/reference.json.
+// screenshots of each view in screenshots/. v4 rewrites every trophy note in this
+// session (a deeper concrete tip per trophy plus a named roadmap stage), rebuilds the tracker's code
+// from scratch again (v4 save format that records earned dates, import that reports unknown names,
+// N/S keyboard shortcuts, search over tips and difficulty words), and corrects two swapped
+// reference entries. v3 rebuilt the tracker's code from scratch in its session (versioned save format
+// with migration, richer export/import, a sortable checklist, a detail pane that steps between
+// trophies and names its roadmap stage), expanded the reference to four sections including one-off
+// free-roam moments, and added a meta block to app/data/trophies.json. v2 added per-trophy difficulty
+// and time estimates plus a concrete tip in app/data/trophy-notes.json, per-stage checklists with hour
+// estimates on the roadmap, avoid-notes on the missables page, and a collectibles / activities / money
+// reference in app/data/reference.json.
 // The hand-in below is unchanged plumbing.
 const here = fileURLToPath(new URL('.', import.meta.url));
 const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
@@ -44,8 +47,8 @@ if (existsSync(join(here, 'screenshots'))) cpSync(join(here, 'screenshots'), joi
 // v2: app/data/trophy-notes.json (difficulty, time, tip, avoid per trophy) and
 // app/data/reference.json (collectibles / activities / money) are copied with app/ by the cpSync above —
 // they are plain data files the app fetches at run time, inside app/, so they need no special handling here.
-// v3: verified 2026-11-19 — the dossier builds deterministically (two runs, byte-identical,
-// 787,312 bytes, text 113,687 bytes, inside the 1.5 MiB / 160 KiB caps) and the local check passes
+// v4: verified 2026-11-19 — the dossier builds deterministically (two runs, byte-identical,
+// 818,166 bytes, text 127,364 bytes, inside the 1.5 MiB / 160 KiB caps) and the local check passes
 // 4 pass / 0 fail on the worktree.
 writeFileSync(
   join(out, 'dossier.json'),

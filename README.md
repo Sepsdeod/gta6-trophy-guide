@@ -14,6 +14,15 @@ Leonida Ledger — an offline guide and tracker for all 55 GTA 6 PlayStation 5 t
 4. Turn on **Hide story spoilers** before a first playthrough: story trophies you have not earned yet show a mask instead of their names, descriptions and guides.
 5. Check the **Missables** tab before each story session — 26 trophies hang on one-time moments, and the tab says how not to miss each one.
 6. Keyboard: ↑ / ↓ moves between trophies, E marks the selected trophy earned, / focuses search, 1–4 switches tab.
+7. Press N to jump straight to your next unearned trophy in roadmap order, and S to hide or show story spoilers — both work from anywhere in the guide, without touching the mouse.
+
+## What changed in v4
+
+- Every trophy's note was rewritten in this session with a deeper tip — a concrete "do this" action per trophy — plus a named roadmap stage, so the detail pane says exactly where each trophy sits on the road to the platinum.
+- The tracker's save format is now v4: it records the date each trophy was earned (shown under the earn button) and carries v3 and v1 saves forward. Import now reports how many names it kept and how many it skipped as unknown, and it reads both the new `{ name: date }` export and older plain-list exports.
+- Two new keyboard shortcuts: N jumps to the next unearned trophy in roadmap order, S toggles the story-spoiler setting. The checklist header now also counts how many earned trophies are in the current view, and the search matches tips and difficulty words as well as names and descriptions.
+- The reference gained new entries and two fixes: the showroom-smash and robbery-streak items now name the right trophies, and the money section gained a laundering-route entry.
+- The guide is easier to drive by keyboard: every control now shows a visible focus ring.
 
 ## What changed in v3
 

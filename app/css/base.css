@@ -190,3 +190,12 @@ h1, h2, h3, .serif { font-family: "Iowan Old Style", Palatino, Georgia, serif; }
 .detail-nav button:hover { border-color: var(--accent); color: var(--accent); }
 .kbd-hint { color: var(--muted); font-size: 13px; max-width: 900px; }
 .ref-source { font-size: 12px; color: var(--muted); font-style: italic; }
+
+/* v4 — a visible keyboard-focus ring on every control, the earned-date line
+   under the detail pane's earn button, and the footer tip about the N and S
+   shortcuts. The focus ring matters: the guide is driven by keyboard as
+   much as by mouse, and a focused control must be easy to see. */
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.trophy-row:focus-visible, .tab:focus-visible, .kind:focus-visible { outline-offset: 1px; }
+.earned-date { font-size: 13px; color: var(--muted); margin: 8px 0 0; font-style: italic; }
+.footer-tip { color: var(--ink); font-size: 14px; max-width: 900px; }

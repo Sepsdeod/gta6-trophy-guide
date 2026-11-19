@@ -12,11 +12,13 @@ import {
   MISSABLE_SETS,
   ROADMAP,
   scoreOf,
+  stageNameOf,
   stageProgress,
   trophiesInStage,
 } from './data.js';
 import {
   countKind,
+  earnedInView,
   passesFilters,
   shownDescription,
   shownName,
@@ -132,7 +134,7 @@ export function renderChecklist(
   );
   refs.listMeta.textContent =
     `Showing ${shown.length} of ${trophies.length} trophies · ` +
-    `${store.total()} earned · ${shown.filter((t) => t.missable).length} missable in view`;
+    `${store.total()} earned · ${earnedInView(shown, store)} earned in view · ${shown.filter((t) => t.missable).length} missable in view`;
   refs.emptyState.hidden = shown.length > 0;
 
   for (const trophy of shown) {
@@ -223,7 +225,11 @@ export function renderDetail(
     const stage = ROADMAP.find((entry) => entry.stage === trophy.stage);
     if (stage) {
       pane.append(
-        h('p', 'detail-stage', `${stage.title} · estimated ${stage.hours}`),
+        h(
+          'p',
+          'detail-stage',
+          `${stageNameOf(trophy)} · estimated ${stage.hours}`,
+        ),
       );
     }
     if (trophy.difficulty) {
@@ -299,6 +305,18 @@ export function renderDetail(
   btn.type = 'button';
   btn.addEventListener('click', () => onToggle(trophy.name));
   earnBox.append(btn);
+  if (earned) {
+    const when = store.earnedAt ? store.earnedAt(trophy.name) : null;
+    earnBox.append(
+      h(
+        'p',
+        'earned-date',
+        when
+          ? `Earned on ${when} — recorded in this browser.`
+          : 'Earned — ticked in an earlier save, before dates were recorded.',
+      ),
+    );
+  }
   pane.append(earnBox);
 }
 

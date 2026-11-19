@@ -1,4 +1,4 @@
-// Leonida Ledger v3 boot: load the guide data, wire the toolbar, the tabs,
+// Leonida Ledger v4 boot: load the guide data, wire the toolbar, the tabs,
 // the save controls and the keyboard, and keep every view in sync.
 //
 // The app holds one small state object — the loaded data, the active view,
@@ -9,10 +9,12 @@
 // Keyboard (ignored while typing in a field):
 //   ↑ / ↓  move the selection through the visible checklist
 //   E      mark the selected trophy earned / unmark it
+//   N      jump to the next trophy not earned yet, in roadmap order
+//   S      toggle the story-spoiler setting
 //   /      jump to the search box
 //   1–4    switch tab (checklist, roadmap, missables, reference)
 
-import { loadGuide } from './data.js';
+import { loadGuide, nextUnearned } from './data.js';
 import { blankFilters } from './filters.js';
 import { openTrophyStore } from './store.js';
 import {
@@ -114,6 +116,16 @@ function flipTrophy(name) {
   renderEverything();
 }
 
+function jumpToNextUnearned() {
+  const next = nextUnearned(state.trophies, store);
+  if (!next) {
+    refs.saveNote.textContent =
+      'Every trophy is earned — the platinum is yours, Leonida Legend!';
+    return;
+  }
+  pickTrophy(next.name, true);
+}
+
 function stepSelection(delta) {
   const order = state.shown.length > 0 ? state.shown : state.trophies;
   if (order.length === 0) return;
@@ -193,15 +205,18 @@ grab('importFile').addEventListener('change', async (event) => {
   if (!file) return;
   try {
     const parsed = JSON.parse(await file.text());
-    const raw = Array.isArray(parsed) ? parsed : parsed.earned ?? [];
+    const earnedField = Array.isArray(parsed) ? parsed : parsed.earned ?? [];
+    // A v4 export keeps earned as { name: date }; older exports keep it as
+    // a plain list of names. Both normalise to a list here.
+    const raw = Array.isArray(earnedField)
+      ? earnedField
+      : Object.keys(earnedField);
     const known = new Set(state.trophies.map((t) => t.name));
     const wanted = raw.filter((name) => typeof name === 'string');
-    const kept = wanted.filter((name) => known.has(name));
-    const unknown = wanted.length - kept.length;
-    store.restore(kept);
+    const result = store.restore(wanted, known);
     refs.saveNote.textContent =
-      `Imported ${kept.length} earned trophies` +
-      (unknown > 0 ? ` (${unknown} unknown names skipped).` : '.');
+      `Imported ${result.kept} earned trophies` +
+      (result.unknown > 0 ? ` (${result.unknown} unknown names skipped).` : '.');
   } catch {
     refs.saveNote.textContent =
       'That file could not be imported — it is not a progress export from this guide.';
@@ -233,6 +248,12 @@ document.addEventListener('keydown', (event) => {
     stepSelection(event.key === 'ArrowDown' ? 1 : -1);
   } else if (event.key === 'e' || event.key === 'E') {
     if (state.selected) flipTrophy(state.selected);
+  } else if (event.key === 'n' || event.key === 'N') {
+    jumpToNextUnearned();
+  } else if (event.key === 's' || event.key === 'S') {
+    refs.spoilerBox.checked = !refs.spoilerBox.checked;
+    filters.spoilersHidden = refs.spoilerBox.checked;
+    renderEverything();
   } else if (event.key === '/') {
     event.preventDefault();
     switchView('checklist');
