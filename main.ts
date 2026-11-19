@@ -19,6 +19,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-frontend.ts';
 
+// Leonida Ledger: this entry's guide is a full tracker — 55 cited guides, a roadmap
+// to the platinum, missable flags, filters and a spoiler setting in app/, with
+// screenshots of each view in screenshots/. The hand-in below is unchanged plumbing.
 const here = fileURLToPath(new URL('.', import.meta.url));
 const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
