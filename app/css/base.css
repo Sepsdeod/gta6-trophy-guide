@@ -175,3 +175,18 @@ h1, h2, h3, .serif { font-family: "Iowan Old Style", Palatino, Georgia, serif; }
   .masthead { flex-direction: column; }
   .masthead h1 { font-size: 34px; }
 }
+
+/* v3 — styles for the sort control, the detail-pane trophy stepper, the
+   roadmap stage line in the detail pane, the keyboard hint and the
+   reference entries' source lines. */
+.sort-filter select { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); }
+.detail-stage { font-size: 13px; font-weight: 700; color: var(--accent); margin: 0 0 10px; }
+.detail-nav { display: flex; gap: 8px; margin: 0 0 12px; }
+.detail-nav button {
+  font: inherit; font-size: 13px; font-weight: 600;
+  border: 1px solid var(--line); background: var(--card); border-radius: 6px;
+  padding: 6px 12px; cursor: pointer; color: var(--ink);
+}
+.detail-nav button:hover { border-color: var(--accent); color: var(--accent); }
+.kbd-hint { color: var(--muted); font-size: 13px; max-width: 900px; }
+.ref-source { font-size: 12px; color: var(--muted); font-style: italic; }

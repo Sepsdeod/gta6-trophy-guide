@@ -46,6 +46,14 @@
       <option value="bronze">Bronze</option>
     </select>
   </label>
+  <label class="sort-filter">Sort
+    <select id="sortOrder">
+      <option value="roadmap">Roadmap order</option>
+      <option value="name">Name A–Z</option>
+      <option value="grade">Grade (best first)</option>
+      <option value="difficulty">Difficulty (easiest first)</option>
+    </select>
+  </label>
   <label class="spoiler-toggle"><input type="checkbox" id="spoilerToggle"> Hide story spoilers</label>
   <label class="earned-toggle"><input type="checkbox" id="hideEarned"> Hide earned</label>
 </section>
@@ -71,6 +79,7 @@
     <span class="save-note" id="saveNote">Progress saves in this browser (localStorage) automatically.</span>
   </div>
   <p class="sources-note">Sources: the official trophy list as published by PlayStation, via <span id="sourceLinks"></span>. Names, descriptions and grades are shown exactly as PlayStation publishes them; every guide is written for this entry in our own words and cites its sources beside it. Where the official description does not pin down a place or step, the guide says so instead of inventing one. No Rockstar logo, artwork or game screenshot is used anywhere in this guide. Works fully offline — it loads nothing from the network.</p>
+  <p class="kbd-hint">Keyboard: ↑ / ↓ move between trophies · E marks the selected trophy earned · / focuses search · 1–4 switches tab.</p>
   <p class="license-note">Leonida Ledger — an open-source, offline GTA 6 trophy guide &amp; tracker. MIT licensed.</p>
 </footer>
 <script type="module" src="js/main.js"></script>
