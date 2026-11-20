@@ -1,30 +1,33 @@
 // The earned-trophy checklist, kept in the browser's localStorage.
 //
-// Leonida Ledger v4 keeps progress under a versioned key and records the
-// date each trophy was ticked, so the detail pane can say when a trophy was
+// Leonida Ledger v5 keeps progress under a versioned key and records the
+// date each trophy was ticked, so the detail card can say when a trophy was
 // earned. Older saves are recognised and carried forward instead of being
-// silently dropped: a v3 save (a plain list of names) and the original v1
-// save both migrate into the v4 shape on first load, and the legacy key is
-// removed so the migration never runs twice.
+// silently dropped: a v4 save (names mapped to dates), a v3 save (a plain
+// list of names) and the original v1 save all migrate into the v5 shape on
+// first load, and the legacy key is removed so the migration never runs
+// twice.
 //
-// The store knows nothing about the trophy list itself: it only guards a
+// The ledger knows nothing about the trophy list itself: it only guards a
 // map of earned trophy names to the date they were earned. That keeps the
 // import path honest — unknown names are reported, never swallowed.
 //
-// Export format (leonida-ledger-progress, version 4):
+// Export format (leonida-ledger-progress, version 5):
 //   { guide, format, version, exportedAt, earned: { name: isoDate, ... } }
-// Import accepts that shape, the v3 shape ({ earned: [name, ...] }), or a
-// bare array of names, and reports how many names were kept, how many were
-// unknown, and how many the file replaced.
+// Import accepts that shape, the v4 shape (the same, version 4), the v3
+// shape ({ earned: [name, ...] }), or a bare array of names, and reports
+// how many names were kept, how many were unknown, and how many the file
+// replaced.
 
-const SAVE_KEY = 'leonida-ledger-progress-v4';
-const OLD_KEYS = [
+const SAVE_KEY = 'leonida-ledger-v5';
+const LEGACY_KEYS = [
+  'leonida-ledger-progress-v4',
   'leonida-ledger-progress-v3',
   'gta6-trophy-guide-progress-v1',
 ];
-const EXPORT_VERSION = 4;
+const FORMAT_VERSION = 5;
 
-function loadRaw(key) {
+function readStored(key) {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
@@ -34,7 +37,7 @@ function loadRaw(key) {
   }
 }
 
-function saveRaw(key, value) {
+function writeStored(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
     return true;
@@ -45,10 +48,10 @@ function saveRaw(key, value) {
   }
 }
 
-// Turn whatever a stored value holds into a name -> date map. A v4 object
-// carries { earned: { name: date } }; a v3/v1 value is a plain array of
-// names, which migrates in with no date attached.
-function toEarnedMap(value) {
+// Turn whatever a stored value holds into a name -> date map. A v5/v4
+// object carries { earned: { name: date } }; a v3/v1 value is a plain array
+// of names, which migrates in with no date attached.
+function toDateMap(value) {
   const map = new Map();
   if (!value) return map;
   if (Array.isArray(value)) {
@@ -73,17 +76,17 @@ function toEarnedMap(value) {
   return map;
 }
 
-export function openTrophyStore() {
-  let earned = toEarnedMap(loadRaw(SAVE_KEY));
+export function openLedger() {
+  let earned = toDateMap(readStored(SAVE_KEY));
   let migrated = 0;
 
   if (earned.size === 0) {
-    for (const key of OLD_KEYS) {
-      const legacy = toEarnedMap(loadRaw(key));
+    for (const key of LEGACY_KEYS) {
+      const legacy = toDateMap(readStored(key));
       if (legacy.size > 0) {
         earned = legacy;
         migrated = legacy.size;
-        saveRaw(SAVE_KEY, { version: EXPORT_VERSION, earned: {} });
+        writeStored(SAVE_KEY, { version: FORMAT_VERSION, earned: {} });
         persist();
         try {
           localStorage.removeItem(key);
@@ -98,57 +101,58 @@ export function openTrophyStore() {
   function persist() {
     const plain = {};
     for (const [name, when] of earned) plain[name] = when;
-    saveRaw(SAVE_KEY, { version: EXPORT_VERSION, earned: plain });
+    writeStored(SAVE_KEY, { version: FORMAT_VERSION, earned: plain });
   }
 
-  function today() {
+  function todayStamp() {
     return new Date().toISOString().slice(0, 10);
   }
 
   return {
     // How many trophies from an earlier save were carried into this version.
-    migratedCount: migrated,
+    migrated,
 
-    earned(name) {
+    has(name) {
       return earned.has(name);
     },
 
     // The date a trophy was ticked (YYYY-MM-DD), or null when it came from
     // an older save that kept no dates.
-    earnedAt(name) {
+    when(name) {
       return earned.get(name) ?? null;
     },
 
-    total() {
+    count() {
       return earned.size;
     },
 
-    list() {
+    names() {
       return [...earned.keys()];
     },
 
-    toggle(name) {
+    mark(name) {
+      if (!earned.has(name)) earned.set(name, todayStamp());
+      persist();
+    },
+
+    unmark(name) {
+      earned.delete(name);
+      persist();
+    },
+
+    flip(name) {
       if (earned.has(name)) earned.delete(name);
-      else earned.set(name, today());
+      else earned.set(name, todayStamp());
       persist();
       return earned.has(name);
     },
 
-    set(name, on) {
-      if (on) {
-        if (!earned.has(name)) earned.set(name, today());
-      } else {
-        earned.delete(name);
-      }
-      persist();
-    },
-
-    wipe() {
+    reset() {
       earned = new Map();
       persist();
     },
 
-    download() {
+    saveFile() {
       const plain = {};
       for (const name of [...earned.keys()].sort()) {
         plain[name] = earned.get(name);
@@ -156,7 +160,7 @@ export function openTrophyStore() {
       const payload = {
         guide: 'Leonida Ledger',
         format: 'leonida-ledger-progress',
-        version: EXPORT_VERSION,
+        version: FORMAT_VERSION,
         exportedAt: new Date().toISOString(),
         earned: plain,
       };
@@ -166,7 +170,7 @@ export function openTrophyStore() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = 'leonida-ledger-progress.json';
+      anchor.download = 'leonida-ledger-v5-progress.json';
       anchor.click();
       URL.revokeObjectURL(url);
       return earned.size;
@@ -175,7 +179,7 @@ export function openTrophyStore() {
     // Replace the stored set with the given names. Returns what happened so
     // the caller can tell the player exactly what was kept, what was
     // unknown, and what the file replaced.
-    restore(names, knownNames) {
+    loadNames(names, knownNames) {
       const clean = [];
       const seen = new Set();
       for (const entry of names) {
@@ -185,12 +189,10 @@ export function openTrophyStore() {
         clean.push(entry);
       }
       const known = knownNames ? new Set(knownNames) : null;
-      const kept = known
-        ? clean.filter((name) => known.has(name))
-        : clean;
+      const kept = known ? clean.filter((name) => known.has(name)) : clean;
       const unknown = clean.length - kept.length;
       const before = earned.size;
-      earned = new Map(kept.map((name) => [name, today()]));
+      earned = new Map(kept.map((name) => [name, todayStamp()]));
       persist();
       return { kept: kept.length, unknown, replaced: before };
     },

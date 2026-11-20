@@ -1,4 +1,4 @@
-// Leonida Ledger v4 boot: load the guide data, wire the toolbar, the tabs,
+// Leonida Ledger v5 boot: load the guide data, wire the toolbar, the tabs,
 // the save controls and the keyboard, and keep every view in sync.
 //
 // The app holds one small state object — the loaded data, the active view,
@@ -14,225 +14,232 @@
 //   /      jump to the search box
 //   1–4    switch tab (checklist, roadmap, missables, reference)
 
-import { loadGuide, nextUnearned } from './data.js';
-import { blankFilters } from './filters.js';
-import { openTrophyStore } from './store.js';
+import { loadCatalog, nextPending } from './data.js';
+import { freshQuery } from './filters.js';
+import { openLedger } from './store.js';
 import {
-  renderChecklist,
-  renderDetail,
-  renderHeader,
-  renderKindCounts,
-  renderMissables,
-  renderReference,
-  renderRoadmap,
-  renderSourceLinks,
+  paintDetail,
+  paintKindTallies,
+  paintPlan,
+  paintProgress,
+  paintReference,
+  paintRisks,
+  paintRoster,
+  paintSources,
 } from './views.js';
 
-function grab(id) {
+function elById(id) {
   const node = document.getElementById(id);
   if (!node) throw new Error(`Missing element #${id}`);
   return node;
 }
 
 const refs = {
-  earnedCount: grab('earnedCount'),
-  progressFill: grab('progressFill'),
-  progressBar: grab('progressBar'),
-  earnedPoints: grab('earnedPoints'),
-  earnedPercent: grab('earnedPercent'),
-  nextUp: grab('nextUp'),
-  countStory: grab('countStory'),
-  countMissable: grab('countMissable'),
-  countCollectibles: grab('countCollectibles'),
-  countActivities: grab('countActivities'),
-  missableCount: grab('missableCount'),
-  trophyList: grab('trophyList'),
-  listMeta: grab('listMeta'),
-  emptyState: grab('emptyState'),
-  detailPane: grab('detailPane'),
-  roadmapPane: grab('roadmapPane'),
-  missablesPane: grab('missablesPane'),
-  referencePane: grab('referencePane'),
-  sourceLinks: grab('sourceLinks'),
-  onlineNote: grab('onlineNote'),
-  searchBox: grab('search'),
-  gradeSelect: grab('gradeFilter'),
-  sortSelect: grab('sortOrder'),
-  spoilerBox: grab('spoilerToggle'),
-  hideEarnedBox: grab('hideEarned'),
-  saveNote: grab('saveNote'),
+  earnedTotal: elById('earnedTotal'),
+  barFill: elById('barFill'),
+  barTrack: elById('barTrack'),
+  pointsEarned: elById('pointsEarned'),
+  pctLabel: elById('pctLabel'),
+  gradeStrip: elById('gradeStrip'),
+  nextTarget: elById('nextTarget'),
+  tallyStory: elById('tallyStory'),
+  tallyMissable: elById('tallyMissable'),
+  tallyCollectibles: elById('tallyCollectibles'),
+  tallyActivities: elById('tallyActivities'),
+  riskTotal: elById('riskTotal'),
+  rosterList: elById('rosterList'),
+  rosterMeta: elById('rosterMeta'),
+  noResults: elById('noResults'),
+  detailCard: elById('detailCard'),
+  planView: elById('planView'),
+  riskView: elById('riskView'),
+  refView: elById('refView'),
+  sourceList: elById('sourceList'),
+  onlineCallout: elById('onlineCallout'),
+  queryBox: elById('queryBox'),
+  gradePick: elById('gradePick'),
+  diffPick: elById('diffPick'),
+  sortPick: elById('sortPick'),
+  spoilerSwitch: elById('spoilerSwitch'),
+  earnedSwitch: elById('earnedSwitch'),
+  saveStatus: elById('saveStatus'),
 };
 
-const store = openTrophyStore();
-const filters = blankFilters();
-const state = {
+const ledger = openLedger();
+const query = freshQuery();
+const app = {
   trophies: [],
   sources: {},
   reference: { sections: [] },
   selected: null,
-  view: 'checklist',
+  view: 'roster',
   shown: [],
 };
 
 function selectedTrophy() {
-  return state.trophies.find((t) => t.name === state.selected) ?? null;
+  return app.trophies.find((t) => t.name === app.selected) ?? null;
 }
 
-function renderEverything() {
-  renderHeader(state.trophies, store, refs);
-  renderKindCounts(state.trophies, refs);
-  state.shown = renderChecklist(
-    state.trophies,
-    store,
-    filters,
-    state.selected,
-    pickTrophy,
+function renderAll() {
+  paintProgress(app.trophies, ledger, refs);
+  paintKindTallies(app.trophies, refs);
+  app.shown = paintRoster(
+    app.trophies,
+    ledger,
+    query,
+    app.selected,
+    choose,
     refs,
   );
-  renderDetail(
+  paintDetail(
     selectedTrophy(),
-    state.sources,
-    store,
-    filters,
-    flipTrophy,
-    stepSelection,
+    app.sources,
+    ledger,
+    query,
+    flipDone,
+    advance,
     refs,
   );
-  renderRoadmap(state.trophies, store, flipTrophy, refs);
-  renderMissables(state.trophies, store, refs);
-  renderReference(state.reference, refs);
+  paintPlan(app.trophies, ledger, flipDone, refs);
+  paintRisks(app.trophies, ledger, refs);
+  paintReference(app.reference, refs);
 }
 
-function pickTrophy(name, keepDetail) {
-  state.selected = name;
-  if (!keepDetail) switchView('checklist');
-  renderEverything();
+function choose(name, keepDetail) {
+  app.selected = name;
+  if (!keepDetail) showView('roster');
+  renderAll();
   const wanted = `#trophy-${encodeURIComponent(name)}`;
   if (location.hash !== wanted) history.replaceState(null, '', wanted);
 }
 
-function flipTrophy(name) {
-  store.toggle(name);
-  renderEverything();
+function flipDone(name) {
+  ledger.flip(name);
+  renderAll();
 }
 
-function jumpToNextUnearned() {
-  const next = nextUnearned(state.trophies, store);
+function jumpNext() {
+  const next = nextPending(app.trophies, ledger);
   if (!next) {
-    refs.saveNote.textContent =
+    refs.saveStatus.textContent =
       'Every trophy is earned — the platinum is yours, Leonida Legend!';
     return;
   }
-  pickTrophy(next.name, true);
+  choose(next.name, true);
 }
 
-function stepSelection(delta) {
-  const order = state.shown.length > 0 ? state.shown : state.trophies;
+function advance(delta) {
+  const order = app.shown.length > 0 ? app.shown : app.trophies;
   if (order.length === 0) return;
-  const at = order.findIndex((t) => t.name === state.selected);
+  const at = order.findIndex((t) => t.name === app.selected);
   const next = order[(at + delta + order.length) % order.length];
-  pickTrophy(next.name, true);
+  choose(next.name, true);
 }
 
-const VIEWS = ['checklist', 'roadmap', 'missables', 'reference'];
+const VIEWS = ['roster', 'plan', 'risks', 'ref'];
 
-function switchView(view) {
-  state.view = view;
-  document.querySelectorAll('.tab').forEach((tab) => {
-    tab.classList.toggle('active', tab.dataset.view === view);
+function showView(view) {
+  app.view = view;
+  document.querySelectorAll('.view-tab').forEach((tab) => {
+    tab.classList.toggle('is-active', tab.dataset.view === view);
   });
-  const onChecklist = view === 'checklist';
-  document.querySelector('.layout').hidden = !onChecklist;
-  document.querySelector('.toolbar').style.display = onChecklist ? '' : 'none';
-  refs.roadmapPane.hidden = view !== 'roadmap';
-  refs.missablesPane.hidden = view !== 'missables';
-  refs.referencePane.hidden = view !== 'reference';
-  refs.onlineNote.hidden = filters.kind !== 'online';
-  if (view !== 'checklist') history.replaceState(null, '', `#${view}`);
+  const onRoster = view === 'roster';
+  document.querySelector('.board').hidden = !onRoster;
+  document.querySelector('.toolstrip').style.display = onRoster ? '' : 'none';
+  refs.planView.hidden = view !== 'plan';
+  refs.riskView.hidden = view !== 'risks';
+  refs.refView.hidden = view !== 'ref';
+  refs.onlineCallout.hidden = query.kind !== 'online';
+  if (view !== 'roster') history.replaceState(null, '', `#${view}`);
 }
 
-function syncKindButtons() {
-  document.querySelectorAll('#kindFilters .kind').forEach((button) => {
-    button.classList.toggle('active', button.dataset.kind === filters.kind);
+function syncChips() {
+  document.querySelectorAll('#kindChips .kind-chip').forEach((button) => {
+    button.classList.toggle('is-active', button.dataset.kind === query.kind);
   });
-  refs.onlineNote.hidden = filters.kind !== 'online';
+  refs.onlineCallout.hidden = query.kind !== 'online';
 }
 
-document.querySelectorAll('.tab').forEach((tab) => {
-  tab.addEventListener('click', () => switchView(tab.dataset.view));
+document.querySelectorAll('.view-tab').forEach((tab) => {
+  tab.addEventListener('click', () => showView(tab.dataset.view));
 });
 
-document.querySelectorAll('#kindFilters .kind').forEach((button) => {
+document.querySelectorAll('#kindChips .kind-chip').forEach((button) => {
   button.addEventListener('click', () => {
-    filters.kind = button.dataset.kind;
-    syncKindButtons();
-    renderEverything();
+    query.kind = button.dataset.kind;
+    syncChips();
+    renderAll();
   });
 });
 
-refs.gradeSelect.addEventListener('change', (event) => {
-  filters.grade = event.target.value;
-  renderEverything();
+refs.gradePick.addEventListener('change', (event) => {
+  query.grade = event.target.value;
+  renderAll();
 });
 
-refs.sortSelect.addEventListener('change', (event) => {
-  filters.sort = event.target.value;
-  renderEverything();
+refs.diffPick.addEventListener('change', (event) => {
+  query.difficulty = event.target.value;
+  renderAll();
 });
 
-refs.searchBox.addEventListener('input', (event) => {
-  filters.query = event.target.value.trim();
-  renderEverything();
+refs.sortPick.addEventListener('change', (event) => {
+  query.sort = event.target.value;
+  renderAll();
 });
 
-refs.spoilerBox.addEventListener('change', (event) => {
-  filters.spoilersHidden = event.target.checked;
-  renderEverything();
+refs.queryBox.addEventListener('input', (event) => {
+  query.search = event.target.value.trim();
+  renderAll();
 });
 
-refs.hideEarnedBox.addEventListener('change', (event) => {
-  filters.hideEarned = event.target.checked;
-  renderEverything();
+refs.spoilerSwitch.addEventListener('change', (event) => {
+  query.spoilersHidden = event.target.checked;
+  renderAll();
 });
 
-grab('exportBtn').addEventListener('click', () => {
-  const count = store.download();
-  refs.saveNote.textContent = `Exported ${count} earned trophies — keep the file to import it back later.`;
+refs.earnedSwitch.addEventListener('change', (event) => {
+  query.hideEarned = event.target.checked;
+  renderAll();
 });
 
-grab('importFile').addEventListener('change', async (event) => {
+elById('exportBtn').addEventListener('click', () => {
+  const count = ledger.saveFile();
+  refs.saveStatus.textContent = `Exported ${count} earned trophies — keep the file to import it back later.`;
+});
+
+elById('importInput').addEventListener('change', async (event) => {
   const file = event.target.files[0];
   if (!file) return;
   try {
     const parsed = JSON.parse(await file.text());
     const earnedField = Array.isArray(parsed) ? parsed : parsed.earned ?? [];
-    // A v4 export keeps earned as { name: date }; older exports keep it as
+    // A v5 export keeps earned as { name: date }; older exports keep it as
     // a plain list of names. Both normalise to a list here.
     const raw = Array.isArray(earnedField)
       ? earnedField
       : Object.keys(earnedField);
-    const known = new Set(state.trophies.map((t) => t.name));
+    const known = new Set(app.trophies.map((t) => t.name));
     const wanted = raw.filter((name) => typeof name === 'string');
-    const result = store.restore(wanted, known);
-    refs.saveNote.textContent =
+    const result = ledger.loadNames(wanted, known);
+    refs.saveStatus.textContent =
       `Imported ${result.kept} earned trophies` +
       (result.unknown > 0 ? ` (${result.unknown} unknown names skipped).` : '.');
   } catch {
-    refs.saveNote.textContent =
+    refs.saveStatus.textContent =
       'That file could not be imported — it is not a progress export from this guide.';
   }
   event.target.value = '';
-  renderEverything();
+  renderAll();
 });
 
-grab('resetBtn').addEventListener('click', () => {
+elById('resetBtn').addEventListener('click', () => {
   if (
     window.confirm(
       'Clear all earned trophies? Export first if you want to keep them.',
     )
   ) {
-    store.wipe();
-    renderEverything();
+    ledger.reset();
+    renderAll();
   }
 });
 
@@ -245,56 +252,56 @@ document.addEventListener('keydown', (event) => {
   if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault();
-    stepSelection(event.key === 'ArrowDown' ? 1 : -1);
+    advance(event.key === 'ArrowDown' ? 1 : -1);
   } else if (event.key === 'e' || event.key === 'E') {
-    if (state.selected) flipTrophy(state.selected);
+    if (app.selected) flipDone(app.selected);
   } else if (event.key === 'n' || event.key === 'N') {
-    jumpToNextUnearned();
+    jumpNext();
   } else if (event.key === 's' || event.key === 'S') {
-    refs.spoilerBox.checked = !refs.spoilerBox.checked;
-    filters.spoilersHidden = refs.spoilerBox.checked;
-    renderEverything();
+    refs.spoilerSwitch.checked = !refs.spoilerSwitch.checked;
+    query.spoilersHidden = refs.spoilerSwitch.checked;
+    renderAll();
   } else if (event.key === '/') {
     event.preventDefault();
-    switchView('checklist');
-    refs.searchBox.focus();
+    showView('roster');
+    refs.queryBox.focus();
   } else if (['1', '2', '3', '4'].includes(event.key)) {
-    switchView(VIEWS[Number(event.key) - 1]);
+    showView(VIEWS[Number(event.key) - 1]);
   }
 });
 
-function readHash() {
+function routeFromHash() {
   const hash = decodeURIComponent(location.hash);
   if (VIEWS.includes(hash.slice(1))) {
-    switchView(hash.slice(1));
+    showView(hash.slice(1));
   } else if (hash.startsWith('#trophy-')) {
     const name = hash.slice('#trophy-'.length);
-    if (state.trophies.some((t) => t.name === name)) {
-      state.selected = name;
-      switchView('checklist');
-      renderEverything();
+    if (app.trophies.some((t) => t.name === name)) {
+      app.selected = name;
+      showView('roster');
+      renderAll();
     }
   }
 }
 
-window.addEventListener('hashchange', readHash);
+window.addEventListener('hashchange', routeFromHash);
 
 try {
-  const guide = await loadGuide();
-  state.trophies = guide.trophies;
-  state.sources = guide.sources;
-  state.reference = guide.reference;
-  renderSourceLinks(state.sources, refs);
-  if (store.migratedCount > 0) {
-    refs.saveNote.textContent =
-      `Carried ${store.migratedCount} earned trophies over from the earlier save format.`;
+  const catalog = await loadCatalog();
+  app.trophies = catalog.trophies;
+  app.sources = catalog.sources;
+  app.reference = catalog.reference;
+  paintSources(app.sources, refs);
+  if (ledger.migrated > 0) {
+    refs.saveStatus.textContent =
+      `Carried ${ledger.migrated} earned trophies over from the earlier save format.`;
   }
-  renderEverything();
-  readHash();
+  renderAll();
+  routeFromHash();
 } catch (error) {
-  refs.trophyList.replaceChildren();
+  refs.rosterList.replaceChildren();
   const item = document.createElement('li');
   item.textContent =
     'The trophy list could not be loaded. Reload the page — the guide works offline from its own files.';
-  refs.trophyList.append(item);
+  refs.rosterList.append(item);
 }

@@ -1,4 +1,4 @@
-// All rendering: the checklist, the trophy detail pane, the roadmap, the
+// All rendering: the checklist, the trophy detail card, the roadmap, the
 // missables page and the collectibles reference.
 //
 // Every renderer takes the pieces it needs and rebuilds its pane from
@@ -8,191 +8,218 @@
 // never inject markup.
 
 import {
-  DIFFICULTY_WORDS,
-  MISSABLE_SETS,
-  ROADMAP,
-  scoreOf,
-  stageNameOf,
-  stageProgress,
-  trophiesInStage,
+  DIFFICULTY_LABELS,
+  PLAN_STAGES,
+  RISK_GROUPS,
+  gradeBreakdown,
+  pointsFor,
+  stageDone,
+  stageLabelFor,
+  stageMembers,
 } from './data.js';
 import {
-  countKind,
-  earnedInView,
-  passesFilters,
-  shownDescription,
-  shownName,
-  sortTrophies,
-  spoilerHidden,
+  displayDesc,
+  displayName,
+  earnedAmong,
+  isConcealed,
+  isVisible,
+  orderList,
+  tallyKind,
 } from './filters.js';
 
-const GRADE_WORD = {
+const GRADE_LABEL = {
   platinum: 'Platinum',
   gold: 'Gold',
   silver: 'Silver',
   bronze: 'Bronze',
 };
-const GRADE_INITIAL = { platinum: 'P', gold: 'G', silver: 'S', bronze: 'B' };
+const GRADE_LETTER = { platinum: 'P', gold: 'G', silver: 'S', bronze: 'B' };
+const GRADE_SEQUENCE = ['platinum', 'gold', 'silver', 'bronze'];
 
-function h(tag, cls, text) {
+function el(tag, cls, text) {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
   if (text !== undefined && text !== null) node.textContent = text;
   return node;
 }
 
-function medalBadge(trophy) {
-  return h('span', `medal ${trophy.grade}`, GRADE_INITIAL[trophy.grade]);
+function gradeDisc(trophy) {
+  return el('span', `grade-disc ${trophy.grade}`, GRADE_LETTER[trophy.grade]);
 }
 
-function flagChips(trophy) {
-  const row = h('div', 'trophy-flags');
-  row.append(h('span', 'flag grade', GRADE_WORD[trophy.grade]));
-  if (trophy.hidden) row.append(h('span', 'flag hidden', 'Hidden'));
-  if (trophy.missable) row.append(h('span', 'flag missable', 'Missable'));
+function tagRow(trophy) {
+  const row = el('div', 'trophy-tags');
+  row.append(el('span', 'tag is-grade', GRADE_LABEL[trophy.grade]));
+  if (trophy.hidden) row.append(el('span', 'tag is-hidden', 'Hidden'));
+  if (trophy.missable) row.append(el('span', 'tag is-missable', 'Missable'));
   if (trophy.target) {
-    row.append(h('span', 'flag', `Target: ${trophy.target.toLocaleString()}`));
+    row.append(
+      el('span', 'tag', `Target: ${trophy.target.toLocaleString()}`),
+    );
   }
+  row.append(el('span', 'tag is-stage', stageLabelFor(trophy)));
   return row;
 }
 
-function tickBox(trophy, store, onChange) {
+function tickControl(trophy, ledger, onChange) {
   const box = document.createElement('input');
   box.type = 'checkbox';
-  box.checked = store.earned(trophy.name);
+  box.checked = ledger.has(trophy.name);
   box.setAttribute('aria-label', `Mark ${trophy.name} as earned`);
   box.addEventListener('change', () => {
-    store.set(trophy.name, box.checked);
+    if (box.checked) ledger.mark(trophy.name);
+    else ledger.unmark(trophy.name);
     onChange(trophy.name);
   });
   box.addEventListener('click', (event) => event.stopPropagation());
   return box;
 }
 
-// ---- Header: progress card -------------------------------------------------
+// ---- Header: progress panel -----------------------------------------------
 
-export function renderHeader(trophies, store, refs) {
+export function paintProgress(trophies, ledger, refs) {
   const total = trophies.length;
-  const earned = store.total();
+  const done = ledger.count();
   const points = trophies
-    .filter((t) => store.earned(t.name))
-    .reduce((sum, t) => sum + scoreOf(t), 0);
-  const maxPoints = trophies.reduce((sum, t) => sum + scoreOf(t), 0);
-  const percent = total ? Math.round((earned / total) * 100) : 0;
+    .filter((t) => ledger.has(t.name))
+    .reduce((sum, t) => sum + pointsFor(t), 0);
+  const maxPoints = trophies.reduce((sum, t) => sum + pointsFor(t), 0);
+  const percent = total ? Math.round((done / total) * 100) : 0;
 
-  refs.earnedCount.textContent = String(earned);
-  refs.progressFill.style.width = `${percent}%`;
-  refs.progressBar.setAttribute('aria-valuenow', String(earned));
-  refs.earnedPoints.textContent = String(points);
-  refs.earnedPercent.textContent = `${percent}%`;
+  refs.earnedTotal.textContent = String(done);
+  refs.barFill.style.width = `${percent}%`;
+  refs.barTrack.setAttribute('aria-valuenow', String(done));
+  refs.pointsEarned.textContent = String(points);
+  refs.pctLabel.textContent = `${percent}%`;
 
-  const next = sortTrophies(
-    trophies.filter((t) => !store.earned(t.name)),
+  const byGrade = gradeBreakdown(trophies, ledger);
+  refs.gradeStrip.replaceChildren();
+  for (const grade of GRADE_SEQUENCE) {
+    const cell = byGrade[grade] ?? { done: 0, total: 0 };
+    const bit = el('span', 'grade-bit');
+    bit.append(
+      el('b', null, `${cell.done}/${cell.total}`),
+      document.createTextNode(` ${GRADE_LABEL[grade]}`),
+    );
+    refs.gradeStrip.append(bit);
+  }
+
+  const next = orderList(
+    trophies.filter((t) => !ledger.has(t.name)),
     'roadmap',
   )[0];
-  refs.nextUp.replaceChildren();
-  refs.nextUp.append('Next up: ');
+  refs.nextTarget.replaceChildren();
+  refs.nextTarget.append('Next target: ');
   if (next) {
-    refs.nextUp.append(
-      h('strong', null, `${next.name} — ${GRADE_WORD[next.grade]}`),
+    refs.nextTarget.append(
+      el('strong', null, `${next.name} — ${GRADE_LABEL[next.grade]}`),
     );
   } else {
-    refs.nextUp.append(h('strong', null, 'Platinum earned — Leonida Legend!'));
+    refs.nextTarget.append(
+      el('strong', null, 'Platinum earned — Leonida Legend!'),
+    );
   }
-  // The points line also carries the maximum, so the card reads as a whole.
-  refs.earnedPoints.parentElement?.setAttribute(
+  // The points line also carries the maximum, so the panel reads as a whole.
+  refs.pointsEarned.parentElement?.setAttribute(
     'data-max-points',
     String(maxPoints),
   );
 }
 
-export function renderKindCounts(trophies, refs) {
-  refs.countStory.textContent = String(countKind(trophies, 'story'));
-  refs.countMissable.textContent = String(countKind(trophies, 'missable'));
-  refs.countCollectibles.textContent = String(
-    countKind(trophies, 'collectibles'),
+export function paintKindTallies(trophies, refs) {
+  refs.tallyStory.textContent = String(tallyKind(trophies, 'story'));
+  refs.tallyMissable.textContent = String(tallyKind(trophies, 'missable'));
+  refs.tallyCollectibles.textContent = String(
+    tallyKind(trophies, 'collectibles'),
   );
-  refs.countActivities.textContent = String(countKind(trophies, 'activities'));
-  refs.missableCount.textContent = String(countKind(trophies, 'missable'));
+  refs.tallyActivities.textContent = String(
+    tallyKind(trophies, 'activities'),
+  );
+  refs.riskTotal.textContent = String(tallyKind(trophies, 'missable'));
 }
 
-// ---- Checklist --------------------------------------------------------------
+// ---- Checklist ------------------------------------------------------------
 
-export function renderChecklist(
+export function paintRoster(
   trophies,
-  store,
-  filters,
+  ledger,
+  query,
   selectedName,
   onPick,
   refs,
 ) {
-  const list = refs.trophyList;
+  const list = refs.rosterList;
   list.replaceChildren();
-  const shown = sortTrophies(
-    trophies.filter((t) => passesFilters(t, filters, store.earned(t.name))),
-    filters.sort,
+  const shown = orderList(
+    trophies.filter((t) => isVisible(t, query, ledger.has(t.name))),
+    query.sort,
   );
-  refs.listMeta.textContent =
+  refs.rosterMeta.textContent =
     `Showing ${shown.length} of ${trophies.length} trophies · ` +
-    `${store.total()} earned · ${earnedInView(shown, store)} earned in view · ${shown.filter((t) => t.missable).length} missable in view`;
-  refs.emptyState.hidden = shown.length > 0;
+    `${ledger.count()} earned · ${earnedAmong(shown, ledger)} earned in view · ${shown.filter((t) => t.missable).length} missable in view`;
+  refs.noResults.hidden = shown.length > 0;
 
   for (const trophy of shown) {
-    const earned = store.earned(trophy.name);
-    const li = h(
+    const done = ledger.has(trophy.name);
+    const li = el(
       'li',
-      `trophy-row${earned ? ' earned' : ''}${
-        selectedName === trophy.name ? ' selected' : ''
+      `trophy-card${done ? ' is-earned' : ''}${
+        selectedName === trophy.name ? ' is-selected' : ''
       }`,
     );
-    const box = tickBox(trophy, store, (name) => onPick(name, true));
-    const text = h('div');
+    const box = tickControl(trophy, ledger, (name) => onPick(name, true));
+    const text = el('div');
     text.append(
-      h('div', 'trophy-name', shownName(trophy, filters, earned)),
-      h('div', 'trophy-desc', shownDescription(trophy, filters, earned)),
-      flagChips(trophy),
+      el('div', 'trophy-title', displayName(trophy, query, done)),
+      el('div', 'trophy-blurb', displayDesc(trophy, query, done)),
+      tagRow(trophy),
     );
-    li.append(box, medalBadge(trophy), text, h('span', 'flag grade', GRADE_WORD[trophy.grade]));
+    li.append(
+      box,
+      gradeDisc(trophy),
+      text,
+      el('span', 'tag is-grade', GRADE_LABEL[trophy.grade]),
+    );
     li.addEventListener('click', () => onPick(trophy.name, false));
     list.append(li);
   }
   return shown;
 }
 
-// ---- Detail pane ------------------------------------------------------------
+// ---- Detail card ----------------------------------------------------------
 
-export function renderDetail(
+export function paintDetail(
   trophy,
   sources,
-  store,
-  filters,
-  onToggle,
+  ledger,
+  query,
+  onFlip,
   onStep,
   refs,
 ) {
-  const pane = refs.detailPane;
-  pane.replaceChildren();
+  const card = refs.detailCard;
+  card.replaceChildren();
   if (!trophy) {
-    pane.append(
-      h('p', 'detail-empty', 'Select a trophy to read its guide and sources.'),
+    card.append(
+      el('p', 'detail-empty', 'Pick a trophy to read its guide and sources.'),
     );
     return;
   }
-  const earned = store.earned(trophy.name);
-  const masked = spoilerHidden(trophy, filters, earned);
+  const done = ledger.has(trophy.name);
+  const masked = isConcealed(trophy, query, done);
 
-  pane.append(
-    h(
+  card.append(
+    el(
       'p',
-      `detail-grade ${trophy.grade}`,
-      `${GRADE_WORD[trophy.grade]} trophy · ${scoreOf(trophy)} points`,
+      `detail-grade-line ${trophy.grade}`,
+      `${GRADE_LABEL[trophy.grade]} trophy · ${pointsFor(trophy)} points`,
     ),
   );
-  pane.append(h('h2', null, masked ? 'Hidden story trophy' : trophy.name));
-  pane.append(
-    h(
+  card.append(el('h2', null, masked ? 'Hidden story trophy' : trophy.name));
+  card.append(
+    el(
       'p',
-      'detail-desc',
+      'detail-official',
       masked
         ? 'Spoilers hidden — earn this trophy to reveal its name and description.'
         : trophy.description,
@@ -200,77 +227,83 @@ export function renderDetail(
   );
 
   if (masked) {
-    pane.append(
-      h(
+    card.append(
+      el(
         'p',
-        'spoiler-mask',
+        'spoiler-note',
         'Its guide and sources stay hidden too, until the trophy is earned. Tick it off in the checklist to reveal the guide.',
       ),
     );
   } else {
     if (trophy.target) {
-      pane.append(
-        h('p', 'detail-target', `PSN target: ${trophy.target.toLocaleString()}`),
+      card.append(
+        el(
+          'p',
+          'detail-fact',
+          `PSN target: ${trophy.target.toLocaleString()}`,
+        ),
       );
     }
     if (trophy.missable) {
-      pane.append(
-        h(
+      card.append(
+        el(
           'p',
-          'detail-target',
-          '⚠ Missable — tied to a one-time story moment. See the Missables page.',
+          'detail-fact',
+          'Missable — tied to a one-time story moment. See the Missables tab.',
         ),
       );
     }
-    const stage = ROADMAP.find((entry) => entry.stage === trophy.stage);
+    const stage = PLAN_STAGES.find((entry) => entry.key === trophy.stage);
     if (stage) {
-      pane.append(
-        h(
+      card.append(
+        el(
           'p',
-          'detail-stage',
-          `${stageNameOf(trophy)} · estimated ${stage.hours}`,
+          'detail-stage-line',
+          `${stageLabelFor(trophy)} · estimated ${stage.estimate}`,
         ),
       );
     }
-    if (trophy.difficulty) {
-      const chips = h('div', 'detail-chips');
+    if (trophy.hardness) {
+      const chips = el('div', 'detail-chips');
       chips.append(
-        h(
+        el(
           'span',
-          'chip',
-          `Difficulty: ${DIFFICULTY_WORDS[trophy.difficulty] ?? trophy.difficulty} (${trophy.difficulty}/5)`,
+          'mini-chip',
+          `Difficulty: ${DIFFICULTY_LABELS[trophy.hardness] ?? trophy.hardness} (${trophy.hardness}/5)`,
         ),
       );
-      if (trophy.time) chips.append(h('span', 'chip', `Time: ${trophy.time}`));
-      pane.append(chips);
-      pane.append(
-        h(
+      if (trophy.duration) {
+        chips.append(el('span', 'mini-chip', `Time: ${trophy.duration}`));
+      }
+      card.append(chips);
+      card.append(
+        el(
           'p',
-          'chip-note',
+          'chip-footnote',
           'Difficulty and time are this guide’s own estimates from the official description.',
         ),
       );
     }
-    pane.append(h('p', 'detail-guide', trophy.guide));
-    if (trophy.tip) {
-      const tipBox = h('div', 'tip-box');
-      tipBox.append(h('strong', null, 'Pro tip: '));
-      tipBox.append(document.createTextNode(trophy.tip));
-      pane.append(tipBox);
+    card.append(el('p', 'detail-body', trophy.guide));
+    if (trophy.advice) {
+      const tipBox = el('div', 'tip-callout');
+      tipBox.append(el('strong', null, 'Pro tip: '));
+      tipBox.append(document.createTextNode(trophy.advice));
+      card.append(tipBox);
     }
-    if (trophy.avoid) {
-      const avoidBox = h('div', 'avoid-box');
-      avoidBox.append(h('strong', null, 'How not to miss it: '));
-      avoidBox.append(document.createTextNode(trophy.avoid));
-      pane.append(avoidBox);
+    if (trophy.caution) {
+      const avoidBox = el('div', 'avoid-callout');
+      avoidBox.append(el('strong', null, 'How not to miss it: '));
+      avoidBox.append(document.createTextNode(trophy.caution));
+      card.append(avoidBox);
     }
-    const srcBox = h('div', 'detail-sources');
-    srcBox.append(h('h3', null, 'Sources'));
-    const list = h('ul');
+    const srcBox = el('div', 'detail-source-list');
+    srcBox.append(el('h3', null, 'Sources'));
+    const list = el('ul');
     for (const key of trophy.sources ?? []) {
       const src = sources[key];
       if (!src) continue;
-      const item = h('li');
+      const item = el('li');
       const link = document.createElement('a');
       link.href = src.url;
       link.textContent = src.name;
@@ -280,87 +313,105 @@ export function renderDetail(
       list.append(item);
     }
     list.append(
-      h('li', null, 'Guide text: our own words from the official description.'),
+      el('li', null, 'Guide text: our own words from the official description.'),
     );
     srcBox.append(list);
-    pane.append(srcBox);
+    card.append(srcBox);
   }
 
-  const nav = h('div', 'detail-nav');
-  const prev = h('button', null, '← Previous trophy');
+  const stepper = el('div', 'detail-stepper');
+  const prev = el('button', null, '← Previous trophy');
   prev.type = 'button';
   prev.addEventListener('click', () => onStep(-1));
-  const next = h('button', null, 'Next trophy →');
+  const next = el('button', null, 'Next trophy →');
   next.type = 'button';
   next.addEventListener('click', () => onStep(1));
-  nav.append(prev, next);
-  pane.append(nav);
+  stepper.append(prev, next);
+  card.append(stepper);
 
-  const earnBox = h('div', 'detail-earn');
-  const btn = h(
+  const earnBox = el('div', 'detail-earn');
+  const btn = el(
     'button',
-    earned ? 'earned' : null,
-    earned ? '✓ Earned — tap to unmark' : 'Mark as earned',
+    done ? 'is-earned' : null,
+    done ? '✓ Earned — tap to unmark' : 'Mark as earned',
   );
   btn.type = 'button';
-  btn.addEventListener('click', () => onToggle(trophy.name));
+  btn.addEventListener('click', () => onFlip(trophy.name));
   earnBox.append(btn);
-  if (earned) {
-    const when = store.earnedAt ? store.earnedAt(trophy.name) : null;
+  if (done) {
+    const when = ledger.when ? ledger.when(trophy.name) : null;
     earnBox.append(
-      h(
+      el(
         'p',
-        'earned-date',
+        'earned-on',
         when
           ? `Earned on ${when} — recorded in this browser.`
           : 'Earned — ticked in an earlier save, before dates were recorded.',
       ),
     );
   }
-  pane.append(earnBox);
+  card.append(earnBox);
 }
 
-// ---- Roadmap ----------------------------------------------------------------
+// ---- Roadmap --------------------------------------------------------------
 
-export function renderRoadmap(trophies, store, onToggle, refs) {
-  const pane = refs.roadmapPane;
+export function paintPlan(trophies, ledger, onFlip, refs) {
+  const pane = refs.planView;
   pane.replaceChildren();
   pane.append(
-    h(
+    el(
       'p',
-      'roadmap-total',
+      'plan-lede',
       'About 60–75 hours in all, our estimate — the story is most of it. ' +
-        'Each stage lists the trophies it unlocks; tick them off here or in the checklist, it is the same progress.',
+        'Each stage lists the trophies it unlocks; tick them off here or in the checklist, it is the same progress. ' +
+        'Use "Mark all" to tick a finished stage in one go.',
     ),
   );
-  for (const stage of ROADMAP) {
-    const items = trophiesInStage(trophies, stage.stage);
-    const { done, total } = stageProgress(trophies, store, stage.stage);
-    const box = h('section', 'stage');
-    box.append(h('h2', null, stage.title));
-    const meta = h('p', 'stage-meta');
-    meta.append(h('span', 'stage-hours', `Estimated: ${stage.hours}`));
+  for (const stage of PLAN_STAGES) {
+    const members = stageMembers(trophies, stage.key);
+    const { done, total } = stageDone(trophies, ledger, stage.key);
+    const box = el('section', 'plan-stage');
+    const head = el('div', 'stage-head');
+    head.append(el('h2', null, stage.name));
+    const count = el('span', 'stage-count', `${done} / ${total} earned`);
+    head.append(count);
+    box.append(head);
+    const meta = el('p', null);
+    meta.append(el('span', 'stage-hours', `Estimated: ${stage.estimate}`));
     meta.append(document.createTextNode(' · '));
-    meta.append(
-      h('span', 'stage-progress', `${done} / ${total} earned in this stage`),
-    );
+    meta.append(document.createTextNode(`${done} / ${total} earned in this stage`));
     box.append(meta);
-    const bar = h('div', 'stage-bar');
-    const fill = h('span');
+    const track = el('div', 'stage-track');
+    const fill = el('span');
     fill.style.width = total ? `${Math.round((done / total) * 100)}%` : '0%';
-    bar.append(fill);
-    box.append(bar);
-    box.append(h('p', null, stage.blurb));
-    const list = h('ul', 'stage-checklist');
-    for (const trophy of items) {
-      const earned = store.earned(trophy.name);
-      const li = h('li', earned ? 'earned' : null);
-      li.append(tickBox(trophy, store, onToggle));
+    track.append(fill);
+    box.append(track);
+    box.append(el('p', null, stage.summary));
+    const allBtn = el(
+      'button',
+      'stage-all',
+      done === total && total > 0 ? 'Unmark all in this stage' : 'Mark all in this stage',
+    );
+    allBtn.type = 'button';
+    allBtn.addEventListener('click', () => {
+      const markAll = done !== total;
+      for (const trophy of members) {
+        if (markAll) ledger.mark(trophy.name);
+        else ledger.unmark(trophy.name);
+      }
+      onFlip(members[0]?.name ?? '');
+    });
+    box.append(allBtn);
+    const list = el('ul', 'stage-list');
+    for (const trophy of members) {
+      const earned = ledger.has(trophy.name);
+      const li = el('li', earned ? 'is-earned' : null);
+      li.append(tickControl(trophy, ledger, onFlip));
       li.append(
-        h(
+        el(
           'span',
           null,
-          `${trophy.name} — ${GRADE_WORD[trophy.grade]}${
+          `${trophy.name} — ${GRADE_LABEL[trophy.grade]}${
             trophy.missable ? ' · Missable' : ''
           }`,
         ),
@@ -372,52 +423,59 @@ export function renderRoadmap(trophies, store, onToggle, refs) {
   }
 }
 
-// ---- Missables ---------------------------------------------------------------
+// ---- Missables -------------------------------------------------------------
 
-export function renderMissables(trophies, store, refs) {
-  const pane = refs.missablesPane;
+export function paintRisks(trophies, ledger, refs) {
+  const pane = refs.riskView;
   pane.replaceChildren();
-  const missableTotal = trophies.filter((t) => t.missable).length;
-  const intro = h('div', 'missable-intro');
-  intro.append(h('h2', null, 'Missable trophies — built from the official descriptions'));
+  const riskTotal = trophies.filter((t) => t.missable).length;
+  const intro = el('div', 'section-intro');
   intro.append(
-    h(
+    el('h2', null, 'Missable trophies — built from the official descriptions'),
+  );
+  intro.append(
+    el(
       'p',
       null,
       'A trophy is flagged missable when its official description ties it to one named mission or one-time moment: a chapter, a named story mission, a stranger strand finale, or a single event that does not come back in free roam. Earn these during the moment itself — afterwards the only way back is a mission replay or a new playthrough.',
     ),
   );
   intro.append(
-    h(
+    el(
       'p',
       null,
-      `${missableTotal} of the 55 trophies are flagged missable. Do the story missables on your first playthrough, in stage order, and check them off here as you go.`,
+      `${riskTotal} of the 55 trophies are flagged missable. Do the story missables on your first playthrough, in stage order, and check them off here as you go.`,
     ),
   );
   pane.append(intro);
 
   const byId = new Map(trophies.map((t) => [t.id, t]));
-  for (const group of MISSABLE_SETS) {
-    const groupBox = h('section', 'missable-group');
-    groupBox.append(h('h2', null, group.title));
-    groupBox.append(h('p', null, group.blurb));
-    const list = h('ul', 'trophy-list');
+  for (const group of RISK_GROUPS) {
+    const groupBox = el('section', 'risk-group');
+    groupBox.append(el('h2', null, group.heading));
+    groupBox.append(el('p', null, group.summary));
+    const list = el('ul', 'roster');
     for (const id of group.ids) {
       const trophy = byId.get(id);
       if (!trophy) continue;
-      const earned = store.earned(trophy.name);
-      const li = h('li', `trophy-row${earned ? ' earned' : ''}`);
-      const text = h('div');
-      text.append(h('div', 'trophy-name', trophy.name));
-      text.append(h('div', 'trophy-desc', trophy.description));
-      if (trophy.avoid) {
-        const avoid = h('div', 'avoid-note');
-        avoid.append(h('strong', null, 'How not to miss it: '));
-        avoid.append(document.createTextNode(trophy.avoid));
-        text.append(avoid);
+      const earned = ledger.has(trophy.name);
+      const li = el('li', `trophy-card${earned ? ' is-earned' : ''}`);
+      const text = el('div');
+      text.append(el('div', 'trophy-title', trophy.name));
+      text.append(el('div', 'trophy-blurb', trophy.description));
+      if (trophy.caution) {
+        const caution = el('div', 'avoid-note');
+        caution.append(el('strong', null, 'How not to miss it: '));
+        caution.append(document.createTextNode(trophy.caution));
+        text.append(caution);
       }
-      text.append(flagChips(trophy));
-      li.append(h('span'), medalBadge(trophy), text, h('span', 'flag grade', GRADE_WORD[trophy.grade]));
+      text.append(tagRow(trophy));
+      li.append(
+        el('span'),
+        gradeDisc(trophy),
+        text,
+        el('span', 'tag is-grade', GRADE_LABEL[trophy.grade]),
+      );
       list.append(li);
     }
     groupBox.append(list);
@@ -425,15 +483,15 @@ export function renderMissables(trophies, store, refs) {
   }
 }
 
-// ---- Reference ---------------------------------------------------------------
+// ---- Reference -------------------------------------------------------------
 
-export function renderReference(reference, refs) {
-  const pane = refs.referencePane;
+export function paintReference(reference, refs) {
+  const pane = refs.refView;
   pane.replaceChildren();
-  const intro = h('div', 'missable-intro');
-  intro.append(h('h2', null, 'Collectibles & activities reference'));
+  const intro = el('div', 'section-intro');
+  intro.append(el('h2', null, 'Collectibles & activities reference'));
   intro.append(
-    h(
+    el(
       'p',
       null,
       'What to find, how much of it, and where it counts — built only from the official trophy descriptions. Where a description does not pin down a count or a place, the entry says so instead of inventing one.',
@@ -441,25 +499,27 @@ export function renderReference(reference, refs) {
   );
   pane.append(intro);
   for (const section of reference.sections ?? []) {
-    const box = h('section', 'stage');
-    box.append(h('h2', null, section.title));
-    if (section.intro) box.append(h('p', null, section.intro));
+    const box = el('section', 'plan-stage');
+    box.append(el('h2', null, section.title));
+    if (section.intro) box.append(el('p', null, section.intro));
     for (const item of section.items ?? []) {
-      const entry = h('div', 'ref-item');
-      entry.append(h('h3', null, item.title));
-      if (item.counts) entry.append(h('p', 'ref-counts', item.counts));
-      entry.append(h('p', null, item.tip));
-      if (item.source) entry.append(h('p', 'ref-source', `Source: ${item.source}`));
+      const entry = el('div', 'ref-entry');
+      entry.append(el('h3', null, item.title));
+      if (item.counts) entry.append(el('p', 'ref-counts', item.counts));
+      entry.append(el('p', null, item.tip));
+      if (item.source) {
+        entry.append(el('p', 'ref-origin', `Source: ${item.source}`));
+      }
       box.append(entry);
     }
     pane.append(box);
   }
 }
 
-// ---- Footer source links ------------------------------------------------------
+// ---- Footer source links ----------------------------------------------------
 
-export function renderSourceLinks(sources, refs) {
-  const holder = refs.sourceLinks;
+export function paintSources(sources, refs) {
+  const holder = refs.sourceList;
   holder.replaceChildren();
   const keys = Object.keys(sources);
   keys.forEach((key, index) => {

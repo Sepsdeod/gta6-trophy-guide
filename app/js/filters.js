@@ -1,7 +1,7 @@
 // Checklist filtering, sorting and the spoiler rule.
 //
-// The filter state is one plain object, so the toolbar, the checklist and
-// the detail pane always agree about what the player is looking at. Kinds
+// The query state is one plain object, so the toolbar, the checklist and
+// the detail card always agree about what the player is looking at. Kinds
 // come from the trophy data itself ("story", "collectibles", "activities",
 // "platinum"); "missable" and "online" are views over flags rather than
 // kinds, because the official list has no online trophies at all and
@@ -12,107 +12,117 @@
 // sources. Earned story trophies always show in full — hiding something the
 // player already earned would only get in the way.
 
-import { DIFFICULTY_WORDS } from './data.js';
+import { DIFFICULTY_LABELS } from './data.js';
 
-export function blankFilters() {
+export function freshQuery() {
   return {
     kind: 'all',
     grade: 'all',
-    query: '',
+    difficulty: 'all',
+    search: '',
     hideEarned: false,
     spoilersHidden: false,
     sort: 'roadmap',
   };
 }
 
-const GRADE_ORDER = { platinum: 0, gold: 1, silver: 2, bronze: 3 };
+const GRADE_RANK = { platinum: 0, gold: 1, silver: 2, bronze: 3 };
 
-function fold(text) {
+function normalise(text) {
   return String(text ?? '').toLowerCase();
+}
+
+function tokenize(text) {
+  return normalise(text).split(/[^a-z0-9]+/).filter(Boolean);
 }
 
 // The search looks through the name, description, guide, tip and the
 // difficulty word, so a player can find a trophy by what it asks for
-// ("gold medal", "moderate") as well as by its name.
-function matchesQuery(trophy, query) {
-  const needle = fold(query).trim();
-  if (!needle) return true;
-  const words = DIFFICULTY_WORDS[trophy.difficulty] ?? '';
-  const haystack = fold(
+// ("gold medal", "moderate") as well as by its name. Every word the player
+// types must match somewhere in that text.
+function matchesSearch(trophy, search) {
+  const wanted = tokenize(search);
+  if (wanted.length === 0) return true;
+  const words = DIFFICULTY_LABELS[trophy.hardness] ?? '';
+  const haystack = normalise(
     [
       trophy.name,
       trophy.description,
       trophy.guide,
-      trophy.tip,
-      trophy.noteStage,
+      trophy.advice,
+      trophy.stageLabel,
       words,
     ]
       .filter(Boolean)
       .join(' '),
   );
-  return needle.split(/\s+/).every((word) => haystack.includes(word));
+  return wanted.every((word) => haystack.includes(word));
 }
 
-export function passesFilters(trophy, state, isEarned) {
-  if (state.kind === 'missable' && !trophy.missable) return false;
-  if (state.kind === 'online') return false;
+export function isVisible(trophy, query, done) {
+  if (query.kind === 'missable' && !trophy.missable) return false;
+  if (query.kind === 'online') return false;
   if (
-    state.kind !== 'all' &&
-    state.kind !== 'missable' &&
-    state.kind !== 'online' &&
-    trophy.kind !== state.kind
+    query.kind !== 'all' &&
+    query.kind !== 'missable' &&
+    query.kind !== 'online' &&
+    trophy.kind !== query.kind
   ) {
     return false;
   }
-  if (state.grade !== 'all' && trophy.grade !== state.grade) return false;
-  if (state.hideEarned && isEarned) return false;
-  if (!matchesQuery(trophy, state.query)) return false;
+  if (query.grade !== 'all' && trophy.grade !== query.grade) return false;
+  if (
+    query.difficulty !== 'all' &&
+    String(trophy.hardness ?? '') !== query.difficulty
+  ) {
+    return false;
+  }
+  if (query.hideEarned && done) return false;
+  if (!matchesSearch(trophy, query.search)) return false;
   return true;
 }
 
-// Sort the already-filtered list. Roadmap order (stage, then list order) is
+// Order the already-filtered list. Roadmap order (stage, then list order) is
 // the default because it is the order a player actually earns trophies in;
 // name, grade and difficulty orders are for finding one trophy fast.
-export function sortTrophies(list, mode) {
+export function orderList(list, mode) {
   const copy = [...list];
-  const byRoadmap = (a, b) => a.stage - b.stage || a.id - b.id;
+  const byPlan = (a, b) => a.stage - b.stage || a.id - b.id;
   if (mode === 'name') {
     copy.sort((a, b) => a.name.localeCompare(b.name));
   } else if (mode === 'grade') {
     copy.sort(
       (a, b) =>
-        (GRADE_ORDER[a.grade] ?? 99) - (GRADE_ORDER[b.grade] ?? 99) ||
-        byRoadmap(a, b),
+        (GRADE_RANK[a.grade] ?? 99) - (GRADE_RANK[b.grade] ?? 99) ||
+        byPlan(a, b),
     );
   } else if (mode === 'difficulty') {
     copy.sort(
-      (a, b) => (a.difficulty ?? 3) - (b.difficulty ?? 3) || byRoadmap(a, b),
+      (a, b) => (a.hardness ?? 3) - (b.hardness ?? 3) || byPlan(a, b),
     );
   } else {
-    copy.sort(byRoadmap);
+    copy.sort(byPlan);
   }
   return copy;
 }
 
-export function spoilerHidden(trophy, state, isEarned) {
-  return state.spoilersHidden && trophy.kind === 'story' && !isEarned;
+export function isConcealed(trophy, query, done) {
+  return query.spoilersHidden && trophy.kind === 'story' && !done;
 }
 
-const MASKED_NAME = 'Hidden story trophy';
-const MASKED_DESC =
+const CONCEALED_NAME = 'Hidden story trophy';
+const CONCEALED_DESC =
   'Spoilers hidden — earn this trophy to reveal its name and description.';
 
-export function shownName(trophy, state, isEarned) {
-  return spoilerHidden(trophy, state, isEarned) ? MASKED_NAME : trophy.name;
+export function displayName(trophy, query, done) {
+  return isConcealed(trophy, query, done) ? CONCEALED_NAME : trophy.name;
 }
 
-export function shownDescription(trophy, state, isEarned) {
-  return spoilerHidden(trophy, state, isEarned)
-    ? MASKED_DESC
-    : trophy.description;
+export function displayDesc(trophy, query, done) {
+  return isConcealed(trophy, query, done) ? CONCEALED_DESC : trophy.description;
 }
 
-export function countKind(trophies, kind) {
+export function tallyKind(trophies, kind) {
   if (kind === 'missable') return trophies.filter((t) => t.missable).length;
   if (kind === 'online') return 0;
   if (kind === 'all') return trophies.length;
@@ -121,6 +131,6 @@ export function countKind(trophies, kind) {
 
 // How many of the trophies in a filtered view are already earned — the
 // "x earned in view" figure the checklist header shows.
-export function earnedInView(shown, store) {
-  return shown.filter((trophy) => store.earned(trophy.name)).length;
+export function earnedAmong(shown, ledger) {
+  return shown.filter((trophy) => ledger.has(trophy.name)).length;
 }

@@ -8,37 +8,38 @@
 <link rel="stylesheet" href="css/base.css">
 </head>
 <body>
-<header class="masthead">
-  <div class="masthead-text">
-    <p class="kicker">Grand Theft Auto VI &middot; PlayStation 5 &middot; Offline guide</p>
+<header class="topbar">
+  <div class="brand">
+    <p class="eyebrow">Grand Theft Auto VI &middot; PlayStation 5 &middot; Works offline</p>
     <h1>Leonida Ledger</h1>
-    <p class="subtitle">Every one of the 55 official trophies — 1 platinum, 2 gold, 6 silver, 46 bronze, 28 hidden — with a guide that cites its sources, a difficulty and time estimate plus a pro tip per trophy, a roadmap to the platinum, and a tracker that remembers your progress.</p>
+    <p class="lede">All 55 official trophies — 1 platinum, 2 gold, 6 silver, 46 bronze, 28 hidden — each with a guide written for this entry that names its sources, a difficulty rating and time estimate, a roadmap to the platinum, and a tracker that remembers what you have earned.</p>
   </div>
-  <div class="progress-card" id="progressCard" aria-live="polite">
-    <p class="progress-count"><span id="earnedCount">0</span><span class="of"> / 55 earned</span></p>
-    <div class="progress-bar" role="progressbar" aria-label="Trophies earned" aria-valuemin="0" aria-valuemax="55" aria-valuenow="0" id="progressBar"><span id="progressFill"></span></div>
-    <p class="progress-meta"><span id="earnedPoints">0</span> / 1,230 points &middot; <span id="earnedPercent">0%</span> to the platinum</p>
-    <p class="next-up" id="nextUp">Next up: —</p>
+  <div class="progress-panel" id="progressPanel" aria-live="polite">
+    <p class="progress-total"><span id="earnedTotal">0</span><span class="progress-of"> / 55 earned</span></p>
+    <div class="progress-track" role="progressbar" aria-label="Trophies earned" aria-valuemin="0" aria-valuemax="55" aria-valuenow="0" id="barTrack"><span id="barFill"></span></div>
+    <p class="progress-sub"><span id="pointsEarned">0</span> / 1,230 points &middot; <span id="pctLabel">0%</span> to the platinum</p>
+    <p class="grade-strip" id="gradeStrip"></p>
+    <p class="next-target" id="nextTarget">Next target: —</p>
   </div>
 </header>
-<nav class="tabs" aria-label="Guide sections">
-  <button type="button" class="tab active" data-view="checklist" id="tab-checklist">Checklist</button>
-  <button type="button" class="tab" data-view="roadmap" id="tab-roadmap">Roadmap to Platinum</button>
-  <button type="button" class="tab" data-view="missables" id="tab-missables">Missables <span class="pill" id="missableCount"></span></button>
-  <button type="button" class="tab" data-view="reference" id="tab-reference">Collectibles &amp; Activities</button>
+<nav class="view-tabs" aria-label="Guide sections">
+  <button type="button" class="view-tab is-active" data-view="roster" id="tab-roster">Checklist</button>
+  <button type="button" class="view-tab" data-view="plan" id="tab-plan">Roadmap to Platinum</button>
+  <button type="button" class="view-tab" data-view="risks" id="tab-risks">Missables <span class="count-bubble" id="riskTotal"></span></button>
+  <button type="button" class="view-tab" data-view="ref" id="tab-ref">Collectibles &amp; Activities</button>
 </nav>
-<section class="toolbar" aria-label="Filters and settings">
-  <label class="search">Search <input id="search" type="search" placeholder="Trophy name or description…" autocomplete="off"></label>
-  <div class="kind-filters" role="group" aria-label="Filter by kind" id="kindFilters">
-    <button type="button" data-kind="all" class="kind active">All <span>55</span></button>
-    <button type="button" data-kind="story" class="kind">Story <span id="countStory"></span></button>
-    <button type="button" data-kind="missable" class="kind">Missable <span id="countMissable"></span></button>
-    <button type="button" data-kind="collectibles" class="kind">Collectibles <span id="countCollectibles"></span></button>
-    <button type="button" data-kind="activities" class="kind">Activities <span id="countActivities"></span></button>
-    <button type="button" data-kind="online" class="kind">Online <span>0</span></button>
+<section class="toolstrip" aria-label="Filters and settings">
+  <label class="query-field">Search <input id="queryBox" type="search" placeholder="Trophy name, mission or keyword…" autocomplete="off"></label>
+  <div class="kind-chips" role="group" aria-label="Filter by kind" id="kindChips">
+    <button type="button" data-kind="all" class="kind-chip is-active">All <span>55</span></button>
+    <button type="button" data-kind="story" class="kind-chip">Story <span id="tallyStory"></span></button>
+    <button type="button" data-kind="missable" class="kind-chip">Missable <span id="tallyMissable"></span></button>
+    <button type="button" data-kind="collectibles" class="kind-chip">Collectibles <span id="tallyCollectibles"></span></button>
+    <button type="button" data-kind="activities" class="kind-chip">Activities <span id="tallyActivities"></span></button>
+    <button type="button" data-kind="online" class="kind-chip">Online <span>0</span></button>
   </div>
-  <label class="grade-filter">Grade
-    <select id="gradeFilter">
+  <label class="pick">Grade
+    <select id="gradePick">
       <option value="all">All grades</option>
       <option value="platinum">Platinum</option>
       <option value="gold">Gold</option>
@@ -46,42 +47,52 @@
       <option value="bronze">Bronze</option>
     </select>
   </label>
-  <label class="sort-filter">Sort
-    <select id="sortOrder">
+  <label class="pick">Difficulty
+    <select id="diffPick">
+      <option value="all">Any difficulty</option>
+      <option value="1">Very easy</option>
+      <option value="2">Easy</option>
+      <option value="3">Moderate</option>
+      <option value="4">Hard</option>
+      <option value="5">Very hard</option>
+    </select>
+  </label>
+  <label class="pick">Sort
+    <select id="sortPick">
       <option value="roadmap">Roadmap order</option>
       <option value="name">Name A–Z</option>
       <option value="grade">Grade (best first)</option>
       <option value="difficulty">Difficulty (easiest first)</option>
     </select>
   </label>
-  <label class="spoiler-toggle"><input type="checkbox" id="spoilerToggle"> Hide story spoilers</label>
-  <label class="earned-toggle"><input type="checkbox" id="hideEarned"> Hide earned</label>
+  <label class="switch"><input type="checkbox" id="spoilerSwitch"> Hide story spoilers</label>
+  <label class="switch"><input type="checkbox" id="earnedSwitch"> Hide earned</label>
 </section>
-<p class="online-note" id="onlineNote" hidden>The official list has no online trophies — every one of the 55 can be earned offline, in single-player.</p>
-<main class="layout">
-  <section class="list-pane" aria-label="Trophy list">
-    <p class="list-meta" id="listMeta"></p>
-    <ul class="trophy-list" id="trophyList"></ul>
-    <p class="empty" id="emptyState" hidden>No trophies match these filters. Clear the search or pick another kind.</p>
+<p class="online-callout" id="onlineCallout" hidden>The official list has no online trophies — all 55 can be earned offline, in single-player.</p>
+<main class="board">
+  <section class="roster-pane" aria-label="Trophy list">
+    <p class="roster-meta" id="rosterMeta"></p>
+    <ul class="roster" id="rosterList"></ul>
+    <p class="no-results" id="noResults" hidden>No trophies match these filters. Clear the search or pick another kind.</p>
   </section>
-  <aside class="detail-pane" aria-label="Trophy guide" id="detailPane">
-    <p class="detail-empty">Select a trophy to read its guide and sources.</p>
+  <aside class="detail-card" aria-label="Trophy guide" id="detailCard">
+    <p class="detail-empty">Pick a trophy to read its guide and sources.</p>
   </aside>
 </main>
-<section class="roadmap-pane" id="roadmapPane" hidden aria-label="Roadmap to the platinum"></section>
-<section class="missables-pane" id="missablesPane" hidden aria-label="Missable trophies"></section>
-<section class="reference-pane" id="referencePane" hidden aria-label="Collectibles and activities reference"></section>
-<footer class="footer">
-  <div class="save-row">
+<section class="plan-view" id="planView" hidden aria-label="Roadmap to the platinum"></section>
+<section class="risk-view" id="riskView" hidden aria-label="Missable trophies"></section>
+<section class="ref-view" id="refView" hidden aria-label="Collectibles and activities reference"></section>
+<footer class="page-foot">
+  <div class="save-bar">
     <button type="button" id="exportBtn">Export progress (.json)</button>
-    <label class="import-btn">Import progress <input id="importFile" type="file" accept="application/json,.json"></label>
+    <label class="import-label">Import progress <input id="importInput" type="file" accept="application/json,.json"></label>
     <button type="button" id="resetBtn">Reset progress</button>
-    <span class="save-note" id="saveNote">Progress saves in this browser (localStorage) automatically.</span>
+    <span class="save-status" id="saveStatus">Progress saves in this browser (localStorage) automatically.</span>
   </div>
-  <p class="sources-note">Sources: the official trophy list as published by PlayStation, via <span id="sourceLinks"></span>. Names, descriptions and grades are shown exactly as PlayStation publishes them; every guide is written for this entry in our own words and cites its sources beside it. Where the official description does not pin down a place or step, the guide says so instead of inventing one. No Rockstar logo, artwork or game screenshot is used anywhere in this guide. Works fully offline — it loads nothing from the network.</p>
-  <p class="footer-tip">Tip: press N to jump to your next unearned trophy in roadmap order, and S to hide or show story spoilers without reaching for the mouse. Each trophy's detail pane also names the roadmap stage it belongs to.</p>
-  <p class="kbd-hint">Keyboard: ↑ / ↓ move between trophies · E marks the selected trophy earned · N jumps to the next unearned trophy · S toggles story spoilers · / focuses search · 1–4 switches tab.</p>
-  <p class="license-note">Leonida Ledger — an open-source, offline GTA 6 trophy guide &amp; tracker. MIT licensed.</p>
+  <p class="sources-line">Sources: the official trophy list as published by PlayStation, via <span id="sourceList"></span>. Names, descriptions and grades are shown exactly as PlayStation publishes them; every guide is written for this entry in our own words and cites its sources beside it. Where the official description does not pin down a place or step, the guide says so instead of inventing one. No Rockstar logo, artwork or game screenshot is used anywhere in this guide. Works fully offline — it loads nothing from the network.</p>
+  <p class="foot-tip">Tip: press N to jump to your next unearned trophy in roadmap order, and S to hide or show story spoilers without reaching for the mouse. Each trophy's detail card also names the roadmap stage it belongs to.</p>
+  <p class="keys-line">Keyboard: ↑ / ↓ move between trophies · E marks the selected trophy earned · N jumps to the next unearned trophy · S toggles story spoilers · / focuses search · 1–4 switches tab.</p>
+  <p class="licence-line">Leonida Ledger — an open-source, offline GTA 6 trophy guide &amp; tracker. MIT licensed.</p>
 </footer>
 <script type="module" src="js/main.js"></script>
 </body>
